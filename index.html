@@ -26,7 +26,7 @@
             border-radius: 15px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             padding: 40px;
-            max-width: 600px;
+            max-width: 700px;
             width: 100%;
         }
 
@@ -39,12 +39,12 @@
         .subtitle {
             color: #666;
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             font-size: 14px;
         }
 
         .form-group {
-            margin-bottom: 25px;
+            margin-bottom: 18px;
         }
 
         label {
@@ -56,7 +56,8 @@
         }
 
         input[type="url"],
-        input[type="file"] {
+        input[type="file"],
+        input[type="text"] {
             width: 100%;
             padding: 12px;
             border: 2px solid #e0e0e0;
@@ -66,7 +67,8 @@
         }
 
         input[type="url"]:focus,
-        input[type="file"]:focus {
+        input[type="file"]:focus,
+        input[type="text"]:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -78,7 +80,7 @@
         }
 
         .file-list {
-            margin-top: 15px;
+            margin-top: 10px;
             max-height: 200px;
             overflow-y: auto;
             border: 2px solid #e0e0e0;
@@ -138,6 +140,13 @@
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
         }
 
+        .button.small {
+            width: auto;
+            padding: 8px 12px;
+            font-size: 13px;
+            margin-left: 8px;
+        }
+
         .button:active {
             transform: translateY(0);
         }
@@ -149,8 +158,8 @@
         }
 
         .status {
-            margin-top: 20px;
-            padding: 15px;
+            margin-top: 14px;
+            padding: 12px;
             border-radius: 8px;
             text-align: center;
             font-weight: 600;
@@ -184,18 +193,38 @@
             border-left: 4px solid #2196F3;
             padding: 12px;
             border-radius: 5px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             font-size: 13px;
             color: #1565c0;
         }
 
+        .auth-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #eee;
+        }
+
         @media (max-width: 600px) {
             .container {
-                padding: 25px;
+                padding: 20px;
             }
 
             h1 {
-                font-size: 24px;
+                font-size: 22px;
             }
         }
     </style>
@@ -203,10 +232,29 @@
 <body>
     <div class="container">
         <h1>📤 Discord Webhook Sender</h1>
-        <p class="subtitle">Envoie des fichiers directement sur Discord</p>
+        <p class="subtitle">Envoie des fichiers sur Discord — option de connexion disponible</p>
 
         <div class="info-box">
-            💡 Colle ton webhook Discord, sélectionne tes fichiers, et clique sur "Envoyer"
+            💡 Vous pouvez coller une URL de webhook ou vous connecter avec Discord (OAuth) pour afficher l'utilisateur connecté.
+            <br>
+            ⚠️ Attention : l'envoi direct de fichiers vers l'API Discord depuis le navigateur peut être bloqué par CORS. Si vous rencontrez des erreurs, utilisez un relais serveur.
+        </div>
+
+        <!-- Section d'authentification Discord -->
+        <div class="form-group">
+            <label for="clientId">Client ID de l'application Discord (optionnel pour connexion) :</label>
+            <input type="text" id="clientId" placeholder="Collez ici le Client ID de votre application" />
+            <div class="auth-box">
+                <div id="authArea">
+                    <button id="loginBtn" class="button small">Se connecter avec Discord</button>
+                </div>
+                <div id="userDisplay" style="display:none;" class="user-info">
+                    <img id="avatar" class="avatar" src="" alt="avatar" />
+                    <span id="username"></span>
+                    <button id="logoutBtn" class="button small" style="background:#ff6b6b">Se déconnecter</button>
+                </div>
+            </div>
+            <small style="color:#666; display:block; margin-top:6px;">Pour que la connexion fonctionne, vous devez enregistrer <strong>exactement</strong> cette URL de redirection dans le dashboard Discord (ex: <code>https://votre-site.github.io/index.html</code>) et autoriser le scope <code>identify</code>.</small>
         </div>
 
         <form id="webhookForm">
@@ -216,7 +264,6 @@
                     type="url" 
                     id="webhookUrl" 
                     placeholder="https://discord.com/api/webhooks/..."
-                    required
                 >
             </div>
 
@@ -226,7 +273,6 @@
                     type="file" 
                     id="fileInput" 
                     multiple
-                    required
                 >
             </div>
 
@@ -239,6 +285,146 @@
     </div>
 
     <script>
+        // --- Utilitaires d'authentification Discord (Client-side OAuth implicit flow)
+        // NOTE: Pour des raisons de sécurité et de CORS, l'utilisation côté client peut échouer pour l'envoi de fichiers.
+        // Ceci implémente uniquement l'authentification (affichage de l'utilisateur). Pour envoyer des fichiers en tant
+        // qu'utilisateur ou bot, il est recommandé d'utiliser un relais serveur.
+
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const clientIdInput = document.getElementById('clientId');
+        const authArea = document.getElementById('authArea');
+        const userDisplay = document.getElementById('userDisplay');
+        const avatarImg = document.getElementById('avatar');
+        const usernameSpan = document.getElementById('username');
+
+        // Util: construire URL d'autorisation
+        function buildDiscordAuthorizeUrl(clientId) {
+            const redirectUri = window.location.origin + window.location.pathname; // doit être enregistré dans l'app Discord
+            const params = new URLSearchParams({
+                client_id: clientId,
+                redirect_uri: redirectUri,
+                response_type: 'token', // implicit flow côté client
+                scope: 'identify',
+                prompt: 'consent'
+            });
+            return `https://discord.com/oauth2/authorize?${params.toString()}`;
+        }
+
+        // Ouvre la fenêtre d'authentification (redirige)
+        loginBtn.addEventListener('click', () => {
+            const clientId = clientIdInput.value.trim();
+            if (!clientId) {
+                alert('Veuillez entrer le Client ID de votre application Discord dans le champ au-dessus.');
+                return;
+            }
+            const url = buildDiscordAuthorizeUrl(clientId);
+            window.location.href = url;
+        });
+
+        // Déconnexion
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('discord_token');
+            localStorage.removeItem('discord_user');
+            usernameSpan.textContent = '';
+            avatarImg.src = '';
+            userDisplay.style.display = 'none';
+            authArea.style.display = 'block';
+            showStatus('Vous êtes déconnecté', 'success');
+        });
+
+        // Parser le hash de l'URL pour récupérer access_token (implicit flow)
+        function parseHashForToken() {
+            if (!window.location.hash) return null;
+            const hash = window.location.hash.substring(1); // remove '#'
+            const params = new URLSearchParams(hash);
+            const accessToken = params.get('access_token');
+            const tokenType = params.get('token_type');
+            const expiresIn = params.get('expires_in');
+            if (accessToken) {
+                // Nettoyer le hash pour éviter fuite du token dans l'historique
+                history.replaceState(null, '', window.location.pathname + window.location.search);
+                return { accessToken, tokenType, expiresIn };
+            }
+            return null;
+        }
+
+        async function fetchDiscordUser(token) {
+            try {
+                const res = await fetch('https://discord.com/api/users/@me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(`Discord API: ${res.status} ${text}`);
+                }
+                return await res.json();
+            } catch (err) {
+                // Probablement CORS si bloqué côté Discord
+                throw err;
+            }
+        }
+
+        async function handleAuthOnLoad() {
+            // 1) si token dans localStorage, essayer de charger l'utilisateur
+            let stored = localStorage.getItem('discord_token');
+            if (stored) {
+                try {
+                    const user = JSON.parse(localStorage.getItem('discord_user'));
+                    if (user) {
+                        showUser(user);
+                        return;
+                    }
+                    const u = await fetchDiscordUser(stored);
+                    localStorage.setItem('discord_user', JSON.stringify(u));
+                    showUser(u);
+                    return;
+                } catch (err) {
+                    console.warn('Erreur en chargeant l'utilisateur depuis token stocké:', err);
+                    localStorage.removeItem('discord_token');
+                    localStorage.removeItem('discord_user');
+                }
+            }
+
+            // 2) parser le hash de redirection (après oauth)
+            const tokenInfo = parseHashForToken();
+            if (tokenInfo) {
+                const { accessToken } = tokenInfo;
+                try {
+                    // Stocker temporairement
+                    localStorage.setItem('discord_token', accessToken);
+                    const u = await fetchDiscordUser(accessToken);
+                    localStorage.setItem('discord_user', JSON.stringify(u));
+                    showUser(u);
+                    showStatus('Connecté en tant que ' + u.username, 'success');
+                } catch (err) {
+                    // Erreur probable CORS. On garde le token mais informe l'utilisateur.
+                    console.error(err);
+                    showStatus('Impossible de récupérer les données utilisateur (possible blocage CORS). Token stocké localement.', 'error');
+                    authArea.style.display = 'none';
+                    userDisplay.style.display = 'block';
+                    usernameSpan.textContent = 'Utilisateur (données indisponibles)';
+                }
+            }
+        }
+
+        function showUser(user) {
+            authArea.style.display = 'none';
+            userDisplay.style.display = 'flex';
+            usernameSpan.textContent = `${user.username}#${user.discriminator}`;
+            if (user.avatar) {
+                // Construction de l'URL d'avatar (format standard Discord)
+                const ext = user.avatar.startsWith('a_') ? 'gif' : 'png';
+                avatarImg.src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${ext}`;
+            } else {
+                avatarImg.src = '';
+            }
+        }
+
+        // Initialiser l'auth
+        handleAuthOnLoad();
+
+        // --- Code d'envoi des fichiers (inchangé sauf messages d'information)
         const form = document.getElementById('webhookForm');
         const fileInput = document.getElementById('fileInput');
         const fileList = document.getElementById('fileList');
@@ -272,21 +458,19 @@
         function removeFile(index) {
             selectedFiles.splice(index, 1);
             updateFileList();
-            
-            // Réinitialiser l'input si tous les fichiers sont supprimés
             if (selectedFiles.length === 0) {
                 fileInput.value = '';
             }
         }
 
-        // Soumettre le formulaire
+        // Soumettre le formulaire (envoi vers webhook)
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const webhookUrl = document.getElementById('webhookUrl').value;
+            const webhookUrl = document.getElementById('webhookUrl').value.trim();
 
             if (!webhookUrl) {
-                showStatus('Veuillez entrer une URL de webhook', 'error');
+                showStatus('Veuillez entrer une URL de webhook ou configurez un relais serveur.', 'error');
                 return;
             }
 
@@ -302,7 +486,7 @@
             try {
                 for (const file of selectedFiles) {
                     const formData = new FormData();
-                    formData.append('file', file);
+                    formData.append('file', file, file.name);
 
                     const response = await fetch(webhookUrl, {
                         method: 'POST',
@@ -310,7 +494,8 @@
                     });
 
                     if (!response.ok) {
-                        throw new Error(`Erreur: ${response.statusCode}`);
+                        // response.status exists; statusCode is non standard
+                        throw new Error(`Erreur: ${response.status}`);
                     }
                 }
 
@@ -319,7 +504,7 @@
                 selectedFiles = [];
                 updateFileList();
             } catch (error) {
-                showStatus('❌ Erreur lors de l\'envoi: ' + error.message, 'error');
+                showStatus('❌ Erreur lors de l\'envoi: ' + error.message + '\nSi l\'erreur est liée au navigateur, essayez un relais serveur.', 'error');
             } finally {
                 button.disabled = false;
             }
@@ -328,13 +513,15 @@
         function showStatus(message, type) {
             status.textContent = message;
             status.className = `status show ${type}`;
-            
             if (type === 'success') {
                 setTimeout(() => {
                     status.classList.remove('show');
                 }, 5000);
             }
         }
+
+        // Expose removeFile globalement pour onclick dynamique
+        window.removeFile = removeFile;
     </script>
 </body>
 </html>
