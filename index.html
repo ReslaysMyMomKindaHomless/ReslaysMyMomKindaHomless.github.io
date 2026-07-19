@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Discord Webhook File Sender</title>
+    <title>Reslays Files Sender</title>
     <style>
         * {
             margin: 0;
@@ -117,7 +117,7 @@
         .subtitle {
             color: #666;
             text-align: center;
-            margin-bottom: 25px;
+            margin-bottom: 30px;
             font-size: 15px;
             font-weight: 500;
             animation: fadeInUp 0.8s ease-out 0.1s both;
@@ -139,9 +139,8 @@
             animation: fadeInUp 0.8s ease-out forwards;
         }
 
-        .form-group:nth-child(1) { animation-delay: 0.2s; }
-        .form-group:nth-child(2) { animation-delay: 0.3s; }
-        .form-group:nth-child(3) { animation-delay: 0.4s; }
+        .form-group:nth-child(1) { animation-delay: 0.15s; }
+        .form-group:nth-child(2) { animation-delay: 0.25s; }
 
         label {
             display: block;
@@ -194,7 +193,7 @@
             border-radius: 12px;
             padding: 12px;
             background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
-            animation: fadeInUp 0.8s ease-out 0.5s both;
+            animation: fadeInUp 0.8s ease-out 0.35s both;
         }
 
         .file-list::-webkit-scrollbar {
@@ -293,7 +292,7 @@
             letter-spacing: 1px;
             position: relative;
             overflow: hidden;
-            animation: fadeInUp 0.8s ease-out 0.6s both;
+            animation: fadeInUp 0.8s ease-out 0.45s both;
         }
 
         .button::before {
@@ -363,19 +362,6 @@
             box-shadow: 0 5px 20px rgba(33, 150, 243, 0.2);
         }
 
-        .info-box {
-            background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(25, 103, 210, 0.1));
-            border-left: 5px solid #2196F3;
-            padding: 16px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            font-size: 13px;
-            color: #1565c0;
-            line-height: 1.6;
-            animation: fadeInUp 0.8s ease-out 0.15s both;
-            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.1);
-        }
-
         @media (max-width: 600px) {
             .container {
                 padding: 30px 20px;
@@ -408,14 +394,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>📤 Discord Webhook Sender</h1>
-        <p class="subtitle">Envoie des fichiers sur Discord avec style</p>
-
-        <div class="info-box">
-            💡 Colle une URL de webhook Discord pour envoyer tes fichiers.
-            <br>
-            ⚠️ Attention : l'envoi direct de fichiers vers l'API Discord depuis le navigateur peut être bloqué par CORS. Si vous rencontrez des erreurs, utilisez un relais serveur.
-        </div>
+        <h1>🔥 Reslays Files Sender</h1>
+        <p class="subtitle">Envoie tes fichiers sur Discord instantanément</p>
 
         <form id="webhookForm">
             <div class="form-group">
