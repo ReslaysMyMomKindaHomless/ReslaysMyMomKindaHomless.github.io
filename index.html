@@ -142,6 +142,7 @@
         .form-group:nth-child(1) { animation-delay: 0.15s; }
         .form-group:nth-child(2) { animation-delay: 0.25s; }
         .form-group:nth-child(3) { animation-delay: 0.35s; }
+        .form-group:nth-child(4) { animation-delay: 0.45s; }
 
         label {
             display: block;
@@ -203,7 +204,7 @@
             border-radius: 12px;
             padding: 12px;
             background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
-            animation: fadeInUp 0.8s ease-out 0.45s both;
+            animation: fadeInUp 0.8s ease-out 0.55s both;
         }
 
         .file-list::-webkit-scrollbar {
@@ -302,7 +303,7 @@
             letter-spacing: 1px;
             position: relative;
             overflow: hidden;
-            animation: fadeInUp 0.8s ease-out 0.55s both;
+            animation: fadeInUp 0.8s ease-out 0.65s both;
         }
 
         .button::before {
@@ -418,6 +419,15 @@
             </div>
 
             <div class="form-group">
+                <label for="discordId">🔔 ID Discord à ping (optionnel) :</label>
+                <input 
+                    type="text" 
+                    id="discordId" 
+                    placeholder="Ex: 123456789"
+                >
+            </div>
+
+            <div class="form-group">
                 <label for="messageText">💬 Message (optionnel) :</label>
                 <textarea 
                     id="messageText" 
@@ -446,6 +456,7 @@
         // --- Code d'envoi des fichiers et messages
         const form = document.getElementById('webhookForm');
         const fileInput = document.getElementById('fileInput');
+        const discordId = document.getElementById('discordId');
         const messageText = document.getElementById('messageText');
         const fileList = document.getElementById('fileList');
         const status = document.getElementById('status');
@@ -488,6 +499,7 @@
             e.preventDefault();
 
             const webhookUrl = document.getElementById('webhookUrl').value.trim();
+            const userId = discordId.value.trim();
             const message = messageText.value.trim();
 
             if (!webhookUrl) {
@@ -505,15 +517,21 @@
             button.disabled = true;
 
             try {
+                // Construire le message avec ping si ID fourni
+                let finalMessage = message;
+                if (userId && userId.match(/^\d+$/)) {
+                    finalMessage = `<@${userId}> ${message}`.trim();
+                }
+
                 // Envoyer le message en premier s'il existe
-                if (message !== '') {
+                if (finalMessage !== '') {
                     const response = await fetch(webhookUrl, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            content: message
+                            content: finalMessage
                         })
                     });
 
